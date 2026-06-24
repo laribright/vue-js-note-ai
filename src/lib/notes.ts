@@ -42,3 +42,25 @@ export async function deleteNote(id: string): Promise<void> {
 
     if (error) throw error
 }
+
+export async function summarizeNote(note: Note): Promise<Note> {
+  const { data: aiResult, error: functionError } = await supabase.functions.invoke<{
+    summary: string
+    tags: string[]
+  }>('summarize-note', {
+    body: { content: note.content ?? '' }
+  })
+
+  if (functionError) throw functionError
+  if (!aiResult) throw new Error('No response from summarize-note')
+
+  const { data, error } = await supabase
+    .from('notes')
+    .update({ summary: aiResult.summary, tags: aiResult.tags })
+    .eq('id', note.id)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}

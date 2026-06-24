@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
-import { fetchNotes, createNote, updateNote, deleteNote } from '@/lib/notes'
+import { fetchNotes, createNote, updateNote, deleteNote, summarizeNote } from '@/lib/notes'
 import type { Note, NoteInput } from '@/types/note'
 import NoteCard from '@/components/NoteCard.vue'
 import NoteForm from '@/components/NoteForm.vue'
@@ -65,6 +65,25 @@ function handleDelete(id: string) {
   deleteMutation.mutate(id)
 }
 
+const summarizingNoteId = ref<string | null>(null)
+
+const summarizeMutation = useMutation({
+  mutationFn: summarizeNote,
+  onMutate: (note: Note) => {
+    summarizingNoteId.value = note.id
+  },
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['notes'] })
+  },
+  onSettled: () => {
+    summarizingNoteId.value = null
+  },
+})
+
+function handleSummarize(note: Note) {
+  summarizeMutation.mutate(note)
+}
+
 async function handleSignOut() {
   await signOut()
   router.push('/login')
@@ -98,8 +117,10 @@ async function handleSignOut() {
           v-for="note in notes"
           :key="note.id"
           :note="note"
+          :is-summarizing="summarizingNoteId === note.id"
           @edit="startEdit"
           @delete="handleDelete"
+          @summarize="handleSummarize"
         />
       </div>
     </div>
